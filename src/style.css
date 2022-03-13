@@ -1,0 +1,12 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body,
+canvas {
+  background-color: #262935;
+  width: 100%;
+  height: 100vh;
+}
