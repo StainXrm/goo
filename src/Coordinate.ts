@@ -3,13 +3,6 @@
 // cos = adj/hyp
 // tan = opp/adj
 
-interface Circle {
-    x: number;
-    y: number;
-    r: number;
-    cr: number;
-}
-
 interface CartesianObject {
     x: number;
     y: number;
