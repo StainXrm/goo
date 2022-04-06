@@ -1,8 +1,10 @@
 import './style.css'
 import Coord from './Coordinate.js'
 
-const GOORANGE = 300;
-const DEBUG = !true;
+const GOORANGE = 300
+const MAINCIRCLERADIUS = 80
+const SUBCIRCLES = 10
+const DEBUG = !true
 
 let ctx: CanvasRenderingContext2D
 
@@ -17,16 +19,35 @@ interface SimpleCircle {
   r: number //radius
 }
 
-let init = () => {
-  const canvas = document.querySelector("canvas")
-  if (canvas) ctx = <CanvasRenderingContext2D>canvas.getContext("2d")
-  if (!ctx || !canvas) return;
-  canvas.width = window.innerWidth
-  canvas.height = window.innerHeight
+class Circle {
+  x: number
+  y: number
+  r: number
+  vx: number
+  vy: number
+  constructor(x: number, y: number, r: number) {
+    this.x = x
+    this.y = y
+    this.r = r
+    this.vx = Math.random() * 1 - 0.5
+    this.vy = Math.random() * 1 - 0.5
+  }
+  calcGravity = () => {
+    // let dist = Coord.getDistance({ "x": this.x, "y": this.y }, mainCircle)
+    this.vx -= (this.x - mainCircle.x) * 0.0001;
+    this.vy -= (this.y - mainCircle.y) * 0.0001;
+  }
+
+  draw = () => {
+    this.calcGravity()
+    this.x += this.vx
+    this.y += this.vy
+    ctx.beginPath()
+    ctx.fillStyle = "white"
+    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
+    ctx.fill()
+  }
 }
-
-init()
-
 
 
 const clamp = (num: number, min = 0, max = 1) => Math.min(Math.max(num, min), max);
@@ -98,7 +119,8 @@ function connectCircles(MouseCircle: SimpleCircle, MainCircle: SimpleCircle) {
 }
 
 let mouseCircle
-let mainCircle
+let mainCircle: SimpleCircle
+let subCircles: any = []
 let mouseTarget = { "x": 0, "y": 0 };
 
 window.addEventListener("mousemove", (e) => {
@@ -106,13 +128,36 @@ window.addEventListener("mousemove", (e) => {
   mouseTarget.y = e.clientY
 })
 
+let init = () => {
+  const canvas = document.querySelector("canvas")
+  if (canvas) ctx = <CanvasRenderingContext2D>canvas.getContext("2d")
+  if (!ctx || !canvas) return;
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+  for (let index = 0; index < SUBCIRCLES; index++) {
+    let x = canvas.width / 2 + (Math.random() * 50 - 50)
+    let y = canvas.height / 2 + (Math.random() * 50 - 50)
+    let r = Math.random() * (MAINCIRCLERADIUS / 2) + (MAINCIRCLERADIUS / 2)
+    subCircles[index] = new Circle(x, y, r)
+  }
+}
+init()
+
+//Main Draw Function here:
 function drawIt() {
-  ctx?.clearRect(0, 0, window.innerWidth, window.innerHeight)
-  mainCircle = drawCircle(window.innerWidth / 2, window.innerHeight / 2, 80)
+  ctx?.clearRect(0, 0, window.innerWidth, window.innerHeight) //Clear first!
+
+  mainCircle = drawCircle(window.innerWidth / 2, window.innerHeight / 2, MAINCIRCLERADIUS) //Main Circle
+
+  //Subcircles:
+  for (let index = 0; index < subCircles.length; index++) {
+    subCircles[index].draw()
+    connectCircles(subCircles[index], mainCircle)
+  }
+
   let mouseCircleDist = Coord.getDistance({ "x": mouseTarget.x, "y": mouseTarget.y }, mainCircle)
   if (mouseCircleDist < GOORANGE) {
     let mouseCircleSize = (GOORANGE / mouseCircleDist) * 10
-    console.log(mouseCircleSize)
     mouseCircleSize = clamp(mouseCircleSize, 5, 50)
     mouseCircle = drawCircle(mouseTarget.x, mouseTarget.y, mouseCircleSize)
     connectCircles(mouseCircle, mainCircle)
@@ -121,28 +166,3 @@ function drawIt() {
 }
 
 requestAnimationFrame(drawIt)
-
-// class Circle {
-//   x: number
-//   y: number
-//   r: number
-//   vx: number
-//   vy: number
-//   constructor(x: number, y: number, r: number) {
-//     this.x = x
-//     this.y = y
-//     this.r = r
-//     this.vx = Math.random() * 2
-//     this.vy = Math.random() * 2
-//     this.id = null;
-//     this.connections = [];
-//   }
-//   draw() {
-//     if (!ctx) return
-//     ctx.beginPath()
-//     ctx.fillStyle = "white"
-//     ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
-//     ctx.fill()
-//   }
-// }
-
