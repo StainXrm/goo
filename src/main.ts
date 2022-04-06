@@ -1,9 +1,9 @@
 import './style.css'
 import Coord from './Coordinate.js'
 
-const GOORANGE = 300
+const GOORANGE = 200
 const MAINCIRCLERADIUS = 80
-const SUBCIRCLES = 10
+const SUBCIRCLES = 6
 const DEBUG = !true
 
 let ctx: CanvasRenderingContext2D
@@ -34,7 +34,8 @@ class Circle {
   }
   calcGravity = () => {
     // let dist = Coord.getDistance({ "x": this.x, "y": this.y }, mainCircle)
-    this.vx -= (this.x - mainCircle.x) * 0.0001;
+
+    this.vx -= (this.x - mainCircle.x + 5) * 0.0001;
     this.vy -= (this.y - mainCircle.y) * 0.0001;
   }
 
@@ -75,13 +76,13 @@ function drawDebugDot(coord: Coordinates) {
 
 function connectCircles(MouseCircle: SimpleCircle, MainCircle: SimpleCircle) {
   let distance = Coord.getDistance(MouseCircle, MainCircle)
-  if (distance > GOORANGE) return;
+  // if (distance > GOORANGE) return;
   // if (target.r - source.r > distance) return;
   if (Math.abs(MouseCircle.r - MainCircle.r) > distance) return
   const tsd = Coord.cartesianRelToPolar(MouseCircle, MainCircle)
   const std = Coord.cartesianRelToPolar(MainCircle, MouseCircle)
   let angledist = remap(distance, 1, GOORANGE, -15, 70)
-  let angledistsmall = remap(distance, 1, GOORANGE, -8, 25)
+  let angledistsmall = remap(distance, 1, GOORANGE, 0, distance * 0.05)
   let patchangle = 45
   let patchanglesmall = clamp((GOORANGE / distance) * 30, 45, 160)
 
@@ -137,7 +138,7 @@ let init = () => {
   for (let index = 0; index < SUBCIRCLES; index++) {
     let x = canvas.width / 2 + (Math.random() * 50 - 50)
     let y = canvas.height / 2 + (Math.random() * 50 - 50)
-    let r = Math.random() * (MAINCIRCLERADIUS / 2) + (MAINCIRCLERADIUS / 2)
+    let r = Math.random() * (MAINCIRCLERADIUS / 3) + (MAINCIRCLERADIUS / 2)
     subCircles[index] = new Circle(x, y, r)
   }
 }
@@ -161,6 +162,10 @@ function drawIt() {
     mouseCircleSize = clamp(mouseCircleSize, 5, 50)
     mouseCircle = drawCircle(mouseTarget.x, mouseTarget.y, mouseCircleSize)
     connectCircles(mouseCircle, mainCircle)
+    for (let index = 0; index < subCircles.length; index++) {
+      connectCircles(mouseCircle, subCircles[index])
+
+    }
   }
   requestAnimationFrame(drawIt)
 }
