@@ -1,7 +1,7 @@
 import './style.css'
 import Coord from './Coordinate.js'
 
-const GOORANGE = 200
+const GOORANGE = 300
 const MAINCIRCLERADIUS = 80
 const SUBCIRCLES = 6
 const DEBUG = !true
@@ -82,7 +82,7 @@ function connectCircles(MouseCircle: SimpleCircle, MainCircle: SimpleCircle) {
   const tsd = Coord.cartesianRelToPolar(MouseCircle, MainCircle)
   const std = Coord.cartesianRelToPolar(MainCircle, MouseCircle)
   let angledist = remap(distance, 1, GOORANGE, -15, 70)
-  let angledistsmall = remap(distance, 1, GOORANGE, 0, distance * 0.05)
+  let angledistsmall = remap(distance, 1, GOORANGE, -5, distance * 0.10)
   let patchangle = 45
   let patchanglesmall = clamp((GOORANGE / distance) * 30, 45, 160)
 
@@ -156,10 +156,10 @@ function drawIt() {
     connectCircles(subCircles[index], mainCircle)
   }
 
-  let mouseCircleDist = Coord.getDistance({ "x": mouseTarget.x, "y": mouseTarget.y }, mainCircle)
+  let mouseCircleDist = Coord.getDistance({ "x": mouseTarget.x, "y": mouseTarget.y }, { "x": mainCircle.x, "y": mainCircle.y })
   if (mouseCircleDist < GOORANGE) {
-    let mouseCircleSize = (GOORANGE / mouseCircleDist) * 10
-    mouseCircleSize = clamp(mouseCircleSize, 5, 50)
+    let mouseCircleSize = (GOORANGE / mouseCircleDist) * 25
+    mouseCircleSize = clamp(mouseCircleSize, 15, MAINCIRCLERADIUS / 2)
     mouseCircle = drawCircle(mouseTarget.x, mouseTarget.y, mouseCircleSize)
     connectCircles(mouseCircle, mainCircle)
     for (let index = 0; index < subCircles.length; index++) {
