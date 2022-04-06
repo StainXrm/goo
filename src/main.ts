@@ -1,5 +1,5 @@
 import './style.css'
-import Coord, { Coords } from './Coordinate.js'
+import Coord from './Coordinate.js'
 
 const GOORANGE = 300;
 const DEBUG = !true;
@@ -11,7 +11,7 @@ interface Coordinates {
   y: number
 }
 
-interface Circle {
+interface SimpleCircle {
   x: number,
   y: number,
   r: number //radius
@@ -19,8 +19,8 @@ interface Circle {
 
 let init = () => {
   const canvas = document.querySelector("canvas")
-  ctx = canvas?.getContext("2d")
-  if (!canvas) return;
+  if (canvas) ctx = <CanvasRenderingContext2D>canvas.getContext("2d")
+  if (!ctx || !canvas) return;
   canvas.width = window.innerWidth
   canvas.height = window.innerHeight
 }
@@ -33,8 +33,8 @@ const clamp = (num: number, min = 0, max = 1) => Math.min(Math.max(num, min), ma
 const remap = (num: number, min1 = 0, max1 = 1, min2 = 0, max2 = 1) => min2 + (num - min1) * (max2 - min2) / (max1 / min1)
 
 
-function drawCircle(x: number, y: number, radius: number, fill = "white", stroke = "none") {
-  if (!ctx) return
+function drawCircle(x: number, y: number, radius: number, fill = "white", stroke = "none"): SimpleCircle {
+  if (!ctx) return { "x": -1, "y": -1, "r": -1 }
   ctx.beginPath()
   ctx.fillStyle = fill
   ctx.strokeStyle = stroke
@@ -52,30 +52,27 @@ function drawDebugDot(coord: Coordinates) {
   ctx.fill()
 }
 
-function connectCircles(target, source) {
-  let distance = Coord.getDistance(sourceCircle, targetCircle)
+function connectCircles(MouseCircle: SimpleCircle, MainCircle: SimpleCircle) {
+  let distance = Coord.getDistance(MouseCircle, MainCircle)
   if (distance > GOORANGE) return;
   // if (target.r - source.r > distance) return;
-  if (Math.abs(target.r - source.r) > distance) return
-  const tsd = Coord.cartesianRelToPolar(target, source)
-  const std = Coord.cartesianRelToPolar(source, target)
+  if (Math.abs(MouseCircle.r - MainCircle.r) > distance) return
+  const tsd = Coord.cartesianRelToPolar(MouseCircle, MainCircle)
+  const std = Coord.cartesianRelToPolar(MainCircle, MouseCircle)
   let angledist = remap(distance, 1, GOORANGE, -15, 70)
+  let angledistsmall = remap(distance, 1, GOORANGE, -8, 25)
   let patchangle = 45
   let patchanglesmall = clamp((GOORANGE / distance) * 30, 45, 160)
-  // if (target.r + source.r > distance) patchanglesmall = (90 / distance) * 75;
-  // if ((target.r + source.r) / 2 > distance) angledist = 1
 
-
-
-  let cs1 = Coord.polarRelToCartesian({ "r": source.r, "deg": tsd.deg + patchangle }, source)
-  let cs2 = Coord.polarRelToCartesian({ "r": source.r, "deg": tsd.deg - patchangle }, source)
-  let ct1 = Coord.polarRelToCartesian({ "r": target.r, "deg": std.deg + patchanglesmall }, target)
-  let ct2 = Coord.polarRelToCartesian({ "r": target.r, "deg": std.deg - patchanglesmall }, target)
+  let cs1 = Coord.polarRelToCartesian({ "r": MainCircle.r, "deg": tsd.deg + patchangle }, MainCircle)
+  let cs2 = Coord.polarRelToCartesian({ "r": MainCircle.r, "deg": tsd.deg - patchangle }, MainCircle)
+  let ct1 = Coord.polarRelToCartesian({ "r": MouseCircle.r, "deg": std.deg + patchanglesmall }, MouseCircle)
+  let ct2 = Coord.polarRelToCartesian({ "r": MouseCircle.r, "deg": std.deg - patchanglesmall }, MouseCircle)
 
   let cs1a = Coord.polarRelToCartesian({ "r": angledist, "deg": tsd.deg - patchangle }, cs1)
   let cs2a = Coord.polarRelToCartesian({ "r": angledist, "deg": tsd.deg + patchangle }, cs2)
-  let ct1a = Coord.polarRelToCartesian({ "r": angledist, "deg": std.deg - patchangle }, ct1)
-  let ct2a = Coord.polarRelToCartesian({ "r": angledist, "deg": std.deg + patchangle }, ct2)
+  let ct1a = Coord.polarRelToCartesian({ "r": angledistsmall, "deg": std.deg - patchangle }, ct1)
+  let ct2a = Coord.polarRelToCartesian({ "r": angledistsmall, "deg": std.deg + patchangle }, ct2)
 
   ctx.beginPath()
   ctx.moveTo(cs1.x, cs1.y)
@@ -97,12 +94,11 @@ function connectCircles(target, source) {
     drawDebugDot(ct2)
     drawDebugDot(cs1)
     drawDebugDot(cs2)
-
   }
 }
 
-let targetCircle
-let sourceCircle
+let mouseCircle
+let mainCircle
 let mouseTarget = { "x": 0, "y": 0 };
 
 window.addEventListener("mousemove", (e) => {
@@ -112,34 +108,41 @@ window.addEventListener("mousemove", (e) => {
 
 function drawIt() {
   ctx?.clearRect(0, 0, window.innerWidth, window.innerHeight)
-  targetCircle = drawCircle(mouseTarget.x, mouseTarget.y, 50)
-  sourceCircle = drawCircle(window.innerWidth / 2, window.innerHeight / 2, 80)
-  connectCircles(targetCircle, sourceCircle)
+  mainCircle = drawCircle(window.innerWidth / 2, window.innerHeight / 2, 80)
+  let mouseCircleDist = Coord.getDistance({ "x": mouseTarget.x, "y": mouseTarget.y }, mainCircle)
+  if (mouseCircleDist < GOORANGE) {
+    let mouseCircleSize = (GOORANGE / mouseCircleDist) * 10
+    console.log(mouseCircleSize)
+    mouseCircleSize = clamp(mouseCircleSize, 5, 50)
+    mouseCircle = drawCircle(mouseTarget.x, mouseTarget.y, mouseCircleSize)
+    connectCircles(mouseCircle, mainCircle)
+  }
   requestAnimationFrame(drawIt)
 }
+
 requestAnimationFrame(drawIt)
 
-class Circle {
-  x: number
-  y: number
-  r: number
-  vx: number
-  vy: number
-  constructor(x: number, y: number, r: number) {
-    this.x = x
-    this.y = y
-    this.r = r
-    this.vx = Math.random() * 2
-    this.vy = Math.random() * 2
-    this.id = null;
-    this.connections = [];
-  }
-  draw() {
-    if (!ctx) return
-    ctx.beginPath()
-    ctx.fillStyle = "white"
-    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
-    ctx.fill()
-  }
-}
+// class Circle {
+//   x: number
+//   y: number
+//   r: number
+//   vx: number
+//   vy: number
+//   constructor(x: number, y: number, r: number) {
+//     this.x = x
+//     this.y = y
+//     this.r = r
+//     this.vx = Math.random() * 2
+//     this.vy = Math.random() * 2
+//     this.id = null;
+//     this.connections = [];
+//   }
+//   draw() {
+//     if (!ctx) return
+//     ctx.beginPath()
+//     ctx.fillStyle = "white"
+//     ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
+//     ctx.fill()
+//   }
+// }
 
