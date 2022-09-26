@@ -1,9 +1,9 @@
 import './style.css'
 import Coord from './Coordinate.js'
 
-const GOORANGE = 300
+const GOORANGE = 400
 const MAINCIRCLERADIUS = 80
-const SUBCIRCLES = 8
+const SUBCIRCLES = 10
 const DEBUG = !true
 
 let ctx: CanvasRenderingContext2D
@@ -25,12 +25,14 @@ class Circle {
   r: number
   vx: number
   vy: number
+  gooconnect: boolean
   constructor(x: number, y: number, r: number) {
     this.x = x
     this.y = y
     this.r = r
     this.vx = Math.random() - 0.5
     this.vy = Math.random() - 0.5
+    this.gooconnect = false;
   }
   calcGravity = () => {
     // let dist = Coord.getDistance({ "x": this.x, "y": this.y }, mainCircle)
@@ -47,6 +49,39 @@ class Circle {
     this.y += this.vy
     ctx.beginPath()
     ctx.fillStyle = "white"
+    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
+    ctx.fill()
+  }
+}
+
+class Mouse {
+  x: number
+  y: number
+  numCons: number
+  r: number
+  oldcon: number | undefined
+  constructor(x: number, y: number) {
+    this.x = x
+    this.y = y
+    this.r = 5 //min MouseSize
+    this.numCons = 0
+  }
+  draw = () => {
+    this.should_r = remap(this.numCons, 1, SUBCIRCLES, 5, 50)
+    //console.log(this.numCons, this.should_r)
+
+    //this code still sucks! we need to remove "mass from the Subcircles as we are close and put it on mouse, and vice versa!
+    if (this.should_r > this.r) this.r = this.should_r
+    if (this.should_r < this.r) this.r = this.r - .5
+    if (this.numCons === 0) this.r = this.r - 1;
+    this.r = clamp(this.r, 5, 50)
+
+
+
+
+    ctx.beginPath()
+    ctx.fillStyle = "white"
+    ctx.strokeStyle = "none"
     ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
     ctx.fill()
   }
@@ -86,8 +121,8 @@ function connectCircles(MouseCircle: SimpleCircle, MainCircle: SimpleCircle) {
   const std = Coord.cartesianRelToPolar(MainCircle, MouseCircle)
   let angledist = remap(distance, 1, GOORANGE, -15, 60)
   let angledistsmall = clamp(distance, 10, 15) //this still needs tweaking!
-  let patchangle = 40
-  let patchanglesmall = clamp((GOORANGE / distance) * 30, 33, 160)
+  let patchangle = 45
+  let patchanglesmall = clamp((GOORANGE / distance) * 40, 20, 180)
 
   let cs1 = Coord.polarRelToCartesian({ "r": MainCircle.r, "deg": tsd.deg + patchangle }, MainCircle)
   let cs2 = Coord.polarRelToCartesian({ "r": MainCircle.r, "deg": tsd.deg - patchangle }, MainCircle)
@@ -122,25 +157,25 @@ function connectCircles(MouseCircle: SimpleCircle, MainCircle: SimpleCircle) {
   }
 }
 
-let mouseCircle
+var mouseCircle = new Mouse()
 let mainCircle: SimpleCircle
 let subCircles: any = []
-let canvas;
+const canvas = document.querySelector("canvas")
 let mouseTarget = { "x": 0, "y": 0 };
 
 
 let init = () => {
   console.log("init...")
-  canvas = document.querySelector("canvas")
-  canvas.addEventListener("mousemove", (e) => {
-    mouseTarget.x = e.offsetX
-    mouseTarget.y = e.offsetY
-    console.log(e)
-  })
+  if (canvas) {
+    canvas.addEventListener("mousemove", (e) => {
+      mouseTarget.x = e.offsetX
+      mouseTarget.y = e.offsetY
+    })
+  }
   if (canvas) ctx = <CanvasRenderingContext2D>canvas.getContext("2d")
   if (!ctx || !canvas) return;
-  canvas.width = 800
-  canvas.height = 800
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
   for (let index = 0; index < SUBCIRCLES; index++) {
     let x = canvas.width / 2 + (Math.random() * 50 - 50)
     let y = canvas.height / 2 + (Math.random() * 50 - 50)
@@ -150,13 +185,13 @@ let init = () => {
 }
 init()
 
-window.addEventListener("resize", init())
+window.addEventListener("resize", init)
 
 //Main Draw Function here:
 function drawIt() {
   ctx?.clearRect(0, 0, window.innerWidth, window.innerHeight) //Clear first!
 
-  mainCircle = drawCircle(canvas.width / 2, canvas.height / 2, MAINCIRCLERADIUS) //Main Circle
+  mainCircle = drawCircle(canvas.width / 2, canvas.height / 2, 0) //Main Circle
 
   //Subcircles:
   for (let index = 0; index < subCircles.length; index++) {
@@ -164,23 +199,27 @@ function drawIt() {
     connectCircles(subCircles[index], mainCircle)
   }
 
-  //MouseDot
-  //IMPROVE: We should make the mouse charge up on goo and then release it on distance to each subcircle // Remove MainCircle... no need if there are enough subcis
-  let mouseCircleDist = Coord.getDistance({ "x": mouseTarget.x, "y": mouseTarget.y }, { "x": mainCircle.x, "y": mainCircle.y })
-  const mouseMinSize = 10;
-  if (mouseCircleDist < GOORANGE) {
-    let mouseCircleSize = (GOORANGE / mouseCircleDist) * 10
-    mouseCircleSize = clamp(mouseCircleSize, mouseMinSize, MAINCIRCLERADIUS / 2)
-    mouseCircle = drawCircle(mouseTarget.x, mouseTarget.y, mouseCircleSize)
-    connectCircles(mouseCircle, mainCircle)
-    for (let index = 0; index < subCircles.length; index++) {
-      connectCircles(mouseCircle, subCircles[index]) // this is for the actual goo like strings!
+  for (let index = 0; index < subCircles.length; index++) {
+    let dist = Coord.getDistance({ "x": mouseTarget.x, "y": mouseTarget.y }, { "x": subCircles[index].x, "y": subCircles[index].y })
+    subCircles[index].mousedist = dist;
+    if (dist <= subCircles[index].r) {
+      if (!subCircles[index].gooconnect) mouseCircle.numCons++;
+      subCircles[index].gooconnect = true;
+
+    }
+    if (dist > GOORANGE) {
+      if (subCircles[index].gooconnect) mouseCircle.numCons--;
+      subCircles[index].gooconnect = false;
     }
   }
-  if (mouseCircleDist >= GOORANGE) {
-    drawCircle(mouseTarget.x, mouseTarget.y, mouseMinSize)
-  }
 
+  Object.assign(mouseCircle, { x: mouseTarget.x, y: mouseTarget.y })
+  mouseCircle.draw()
+
+
+  for (let index = 0; index < subCircles.length; index++) {
+    if (subCircles[index].mousedist <= GOORANGE && subCircles[index].gooconnect) connectCircles(mouseCircle, subCircles[index]) // this is for the actual goo like strings!
+  }
   requestAnimationFrame(drawIt)
 }
 
